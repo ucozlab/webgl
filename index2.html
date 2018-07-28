@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script id="2d-vertex-shader" type="notjs">
+
+  // атрибут, который будет получать данные из буфера
+  attribute vec4 a_position;
+
+  // все шейдеры имеют функцию main
+  void main() {
+
+    // gl_Position - специальная переменная вершинного шейдера,
+    // которая отвечает за установку положения
+    gl_Position = a_position;
+  }
+
+</script>
+<script id="2d-fragment-shader" type="notjs">
+
+  // фрагментные шейдеры не имеют точности по умолчанию, поэтому нам необходимо её
+  // указать. mediump подойдёт для большинства случаев. Он означает "средняя точность"
+  precision mediump float;
+
+  void main() {
+    // gl_FragColor - специальная переменная фрагментного шейдера.
+    // Она отвечает за установку цвета.
+    gl_FragColor = vec4(1, 0, 0.5, 1); // вернёт красновато-фиолетовый
+  }
+
+</script>
+<script>
+
+
+
+    /*** INITIALIZE PROGRAM ***/
+
+
+
+  //***** step1 - get webgl context *****//
+  var canvas = document.getElementById("c");
+  var gl = canvas.getContext("webgl");
+  if (!gl) {
+    alert('no webgl support!');
+  }
+
+  //***** step2 - declare create shader function *****//
+  function createShader(gl, type, source) {
+    var shader = gl.createShader(type);   // создание шейдера
+    gl.shaderSource(shader, source);      // устанавливаем шейдеру его программный код
+    gl.compileShader(shader);             // компилируем шейдер
+    var success = gl.getShaderParameter(shader, gl.COMPILE_STATUS);
+    if (success) {                        // если компиляция прошла успешно - возвращаем шейдер
+      return shader;
+    }
+
+    console.log(gl.getShaderInfoLog(shader));
+    gl.deleteShader(shader);
+  }
+
+  //***** step 3 - create 2 shaders by getting their code *****//
+  var vertexShaderSource = document.getElementById("2d-vertex-shader").text;
+  var fragmentShaderSource = document.getElementById("2d-fragment-shader").text;
+
+  var vertexShader = createShader(gl, gl.VERTEX_SHADER, vertexShaderSource);
+  var fragmentShader = createShader(gl, gl.FRAGMENT_SHADER, fragmentShaderSource);
+
+  //***** step 4 - bind 2 shaders into program (for videocard) *****//
+  function createProgram(gl, vertexShader, fragmentShader) {
+    var program = gl.createProgram();
+    gl.attachShader(program, vertexShader);
+    gl.attachShader(program, fragmentShader);
+    gl.linkProgram(program);
+    var success = gl.getProgramParameter(program, gl.LINK_STATUS);
+    if (success) {
+      return program;
+    }
+
+    console.log(gl.getProgramInfoLog(program));
+    gl.deleteProgram(program);
+  }
+  var program = createProgram(gl, vertexShader, fragmentShader);
+
+  //***** step 5 (work with program) - get link for a_position attribute *****//
+  var positionAttributeLocation = gl.getAttribLocation(program, "a_position");
+
+  //***** step 6 - create a buffer to pass data to attribute *****//
+  var positionBuffer = gl.createBuffer();
+
+  //***** step 7 - bind position buffer to webGl *****//
+  gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+
+  //***** step 8 - fill in buffer with data *****//
+  var positions = [ // три двумерных точки
+    0, 0,
+    0, 0.5,
+    0.7, 0
+  ];
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STATIC_DRAW);  // copy array to positions buffer
+
+
+
+
+    /*** RENDER ***/
+
+    // сетим ширину и высоту webgl
+    gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+
+    // очищаем canvas
+    gl.clearColor(0, 0, 0, 0);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+
+    // говорим использовать нашу программу (пару шейдеров)
+    gl.useProgram(program);
+
+    gl.enableVertexAttribArray(positionAttributeLocation);
+
+
+    // Привязываем буфер положений
+    gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+
+    // Указываем атрибуту, как получать данные от positionBuffer (ARRAY_BUFFER)
+    var size = 2;          // 2 компоненты на итерацию
+    var type = gl.FLOAT;   // наши данные - 32-битные числа с плавающей точкой
+    var normalize = false; // не нормализовать данные
+    var stride = 0;        // 0 = перемещаться на size * sizeof(type) каждую итерацию для получения следующего положения
+    var offset = 0;        // начинать с начала буфера
+    gl.vertexAttribPointer(positionAttributeLocation, size, type, normalize, stride, offset)
+
+
+    // draw on the canvas primitive
+    var primitiveType = gl.TRIANGLES;
+    var offset = 0;
+    var count = 3;
+    gl.drawArrays(primitiveType, offset, count);
+
+</script>
+</body>
+</html>
